@@ -22,7 +22,8 @@ import {
   LogOut,
   Shield,
   Download,
-  Lock
+  Lock,
+  Bookmark
 } from "lucide-react";
 import { 
   AlertDialog,
@@ -36,6 +37,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { SavedPetitionsTab } from "@/components/SavedPetitionsTab";
 
 interface Petition {
   id: string;
@@ -413,6 +415,10 @@ const Profile = () => {
                 <FileText className="w-4 h-4 shrink-0" />
                 <span className="text-sm md:text-base">Meine Petitionen</span>
               </TabsTrigger>
+              <TabsTrigger value="saved" className="w-full justify-center gap-2 px-4 py-3">
+                <Bookmark className="w-4 h-4 shrink-0" />
+                <span className="text-sm md:text-base">Gespeichert</span>
+              </TabsTrigger>
               <TabsTrigger value="settings" className="w-full justify-center gap-2 px-4 py-3">
                 <Settings className="w-4 h-4 shrink-0" />
                 <span className="text-sm md:text-base">Einstellungen</span>
@@ -523,6 +529,19 @@ const Profile = () => {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Saved Petitions Tab */}
+          <TabsContent value="saved">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gespeicherte Petitionen</CardTitle>
+                <CardDescription>Petitionen die du zum späteren Lesen gespeichert hast</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SavedPetitionsTab userId={user.id} />
               </CardContent>
             </Card>
           </TabsContent>

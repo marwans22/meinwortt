@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AdminStats } from "@/components/AdminStats";
 import { AdminReports } from "@/components/AdminReports";
 import { ExportButton } from "@/components/ExportButton";
+import { AdminReportedPetitions } from "@/components/AdminReportedPetitions";
 
 interface Petition {
   id: string;
@@ -290,44 +291,52 @@ const Admin = () => {
           </Card>
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Suche nach Titel, Beschreibung oder Ersteller..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle Status</SelectItem>
-                  <SelectItem value="pending">In Prüfung</SelectItem>
-                  <SelectItem value="published">Veröffentlicht</SelectItem>
-                  <SelectItem value="draft">Entwürfe</SelectItem>
-                  <SelectItem value="closed">Geschlossen</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={exportPetitions}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabs */}
+        <Tabs defaultValue="petitions" className="mb-6">
+          <TabsList>
+            <TabsTrigger value="petitions">Petitionen</TabsTrigger>
+            <TabsTrigger value="reports">Gemeldete Petitionen</TabsTrigger>
+          </TabsList>
 
-        {/* Petitions List */}
-        <Card>
+          <TabsContent value="petitions" className="space-y-6">
+            {/* Filters */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Suche nach Titel, Beschreibung oder Ersteller..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full md:w-[200px]">
+                      <Filter className="w-4 h-4 mr-2" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle Status</SelectItem>
+                      <SelectItem value="pending">In Prüfung</SelectItem>
+                      <SelectItem value="published">Veröffentlicht</SelectItem>
+                      <SelectItem value="draft">Entwürfe</SelectItem>
+                      <SelectItem value="closed">Geschlossen</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={exportPetitions}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Petitions List */}
+            <Card>
           <CardHeader>
             <CardTitle>Alle Petitionen</CardTitle>
             <CardDescription>
@@ -418,6 +427,12 @@ const Admin = () => {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <AdminReportedPetitions />
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

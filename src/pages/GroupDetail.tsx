@@ -31,6 +31,29 @@ const GroupDetail = () => {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
+    const channel = (supabase as any)
+      .channel(`members-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "group_members",
+          filter: `group_id=eq.${id}`,
+        },
+        () => {
+          // Reload members when changes occur
+          loadGroup(user);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [id, user]);
+
+  useEffect(() => {
     loadUserAndGroup();
   }, [id]);
 
@@ -324,14 +347,20 @@ const GroupDetail = () => {
             </TabsContent>
 
             <TabsContent value="members" className="space-y-4">
-              {members.map((member) => (
-                <Card key={member.id}>
-                  <CardContent className="flex items-center justify-between p-4">
-                    <Link 
+              <div className="mb-4 p-4 bg-muted/50 rounded-lg animate-fade-in">
+                <p className="text-sm text-muted-foreground">
+                  <Users className="w-4 h-4 inline mr-2" />
+                  {members.length} {members.length === 1 ? "Mitglied" : "Mitglieder"} in dieser Gruppe
+                </p>
+              </div>
+              {members.map((member, index) => (
+                <Card key={member.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                  <CardContent className="flex items-center justify-between p-4 transition-all hover:bg-muted/50">
+                    <Link
                       to={`/profile/${member.user_id}`}
-                      className="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity"
+                      className="flex items-center gap-3 flex-1 hover:opacity-80 transition-all group"
                     >
-                      <Avatar>
+                      <Avatar className="transition-transform group-hover:scale-110">
                         <AvatarImage src={member.profiles?.avatar_url || undefined} />
                         <AvatarFallback>
                           {member.profiles?.full_name?.charAt(0) || "?"}

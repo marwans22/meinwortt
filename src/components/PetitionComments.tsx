@@ -155,7 +155,7 @@ export const PetitionComments = ({ petitionId, currentUserId }: PetitionComments
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-fade-in">
         <h3 className="text-xl font-semibold">
           Kommentare ({comments.length})
         </h3>
@@ -178,12 +178,12 @@ export const PetitionComments = ({ petitionId, currentUserId }: PetitionComments
       </div>
 
       {currentUserId && (
-        <form onSubmit={handleSubmitComment} className="space-y-4">
+        <form onSubmit={handleSubmitComment} className="space-y-4 animate-fade-in">
           <Textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Teile deine Meinung..."
-            className="min-h-[100px]"
+            className="min-h-[100px] transition-all focus:ring-2 focus:ring-primary"
             maxLength={1000}
           />
           <div className="flex justify-between items-center">
@@ -216,9 +216,9 @@ export const PetitionComments = ({ petitionId, currentUserId }: PetitionComments
             return (
               <div
                 key={comment.id}
-                className="flex gap-4 pb-4 border-b last:border-0 animate-fade-in"
+                className="flex gap-4 pb-4 border-b last:border-0 animate-fade-in transition-all hover:bg-muted/30 p-4 rounded-lg"
               >
-                <Link to={`/profile/${comment.user_id}`}>
+                <Link to={`/profile/${comment.user_id}`} className="transition-transform hover:scale-110">
                   <Avatar>
                     <AvatarImage src={comment.profiles?.avatar_url || undefined} />
                     <AvatarFallback>
