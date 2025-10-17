@@ -159,6 +159,10 @@ const CreatePetition = () => {
       toast.error("Bitte gib eine Beschreibung ein");
       return;
     }
+    if (currentStep === 4 && description.length < 100) {
+      toast.error("Die Beschreibung muss mindestens 100 Zeichen lang sein");
+      return;
+    }
     
     if (currentStep < totalSteps) {
       // Skip location step if not lokal
@@ -467,7 +471,7 @@ const CreatePetition = () => {
                   <Alert>
                     <FileText className="h-4 w-4" />
                     <AlertDescription>
-                      Erkläre dein Anliegen ausführlich. Warum ist diese Petition wichtig? Was soll sich ändern?
+                      Erkläre dein Anliegen ausführlich. Warum ist diese Petition wichtig? Was soll sich ändern? Mindestens 100 Zeichen erforderlich.
                     </AlertDescription>
                   </Alert>
 
@@ -480,10 +484,13 @@ const CreatePetition = () => {
                       placeholder="Beschreibe dein Anliegen ausführlich..."
                       rows={15}
                       className="resize-none"
+                      minLength={100}
                     />
-                    <p className="text-sm text-muted-foreground">
-                      Mindestens 100 Zeichen empfohlen
-                    </p>
+                    {description.length < 100 && (
+                      <p className="text-sm text-muted-foreground">
+                        Noch {100 - description.length} Zeichen
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

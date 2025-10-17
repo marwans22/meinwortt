@@ -10,13 +10,15 @@ import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Target, TrendingUp, Calendar, Tag, Building } from "lucide-react";
+import { Users, Target, TrendingUp, Calendar, Tag, Building, MapPin, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { PetitionComments } from "@/components/PetitionComments";
 import { SavePetitionButton } from "@/components/SavePetitionButton";
 import { ReportDialog } from "@/components/ReportDialog";
 import { ImageGallery } from "@/components/ImageGallery";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PetitionCard } from "@/components/PetitionCard";
 
 interface Petition {
   id: string;
@@ -31,6 +33,18 @@ interface Petition {
   status: string;
 }
 
+const GERMAN_CITIES = [
+  "Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Stuttgart",
+  "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden",
+  "Hannover", "Nürnberg", "Duisburg", "Bochum", "Wuppertal", "Bielefeld",
+  "Bonn", "Münster", "Karlsruhe", "Mannheim", "Augsburg", "Wiesbaden",
+  "Gelsenkirchen", "Mönchengladbach", "Braunschweig", "Chemnitz", "Kiel",
+  "Aachen", "Halle", "Magdeburg", "Freiburg", "Krefeld", "Lübeck",
+  "Oberhausen", "Erfurt", "Mainz", "Rostock", "Kassel", "Hagen",
+  "Hamm", "Saarbrücken", "Mülheim", "Potsdam", "Ludwigshafen", "Oldenburg",
+  "Leverkusen", "Osnabrück", "Solingen", "Heidelberg", "Herne", "Neuss",
+];
+
 const PetitionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -39,11 +53,14 @@ const PetitionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [creatorProfile, setCreatorProfile] = useState<any>(null);
+  const [allPetitions, setAllPetitions] = useState<any[]>([]);
   
   // Form fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [city, setCity] = useState("");
   const [comment, setComment] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
@@ -84,6 +101,15 @@ const PetitionDetail = () => {
 
         setPetition(petitionData);
 
+        // Load creator profile
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", petitionData.creator_id)
+          .single();
+        
+        setCreatorProfile(profileData);
+
         // Load signature count
         const { count, error: countError } = await supabase
           .from("signatures")
@@ -93,6 +119,16 @@ const PetitionDetail = () => {
 
         if (countError) throw countError;
         setSignatureCount(count || 0);
+
+        // Load all published petitions
+        const { data: petitionsData } = await supabase
+          .from("petitions")
+          .select("*")
+          .eq("status", "published")
+          .order("created_at", { ascending: false })
+          .limit(6);
+        
+        setAllPetitions(petitionsData || []);
       } catch (error: any) {
         console.error("Error loading petition:", error);
         toast.error("Fehler beim Laden der Petition");
@@ -150,7 +186,7 @@ const PetitionDetail = () => {
         signer_name: `${firstName} ${lastName}`,
         signer_email: email,
         comment: comment || null,
-        verification_status: "verified", // Auto-verify for now
+        verification_status: "verified",
       });
 
       if (error) {
@@ -168,6 +204,7 @@ const PetitionDetail = () => {
       setFirstName("");
       setLastName("");
       setEmail("");
+      setCity("");
       setComment("");
       setAgreedToTerms(false);
     } catch (error: any) {
@@ -223,207 +260,221 @@ const PetitionDetail = () => {
   return (
     <Layout>
       <AnimatedPage>
-      <div className="container mx-auto px-4 py-8 md:py-16">
-        <div className="max-w-4xl mx-auto space-y-8">
-          {/* Header */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex flex-wrap gap-2">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Content */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Header */}
+              <div className="space-y-4">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
+                  {petition.title}
+                </h1>
+
+                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                   {petition.category && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary">
                       <Tag className="w-3 h-3" />
                       {petition.category}
                     </span>
                   )}
                   {petition.target_institution && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-sm">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary text-secondary-foreground">
                       <Building className="w-3 h-3" />
                       {petition.target_institution}
                     </span>
                   )}
                 </div>
+              </div>
 
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mt-4">
-                  {petition.title}
-                </h1>
+              {/* Image Gallery */}
+              {images.length > 0 && (
+                <ImageGallery images={images} alt={petition.title} />
+              )}
 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    Gestartet am {format(new Date(petition.created_at), "d. MMMM yyyy", { locale: de })}
-                  </span>
+              {/* Recent Supporters */}
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Aktuelle Unterzeichner*innen:</p>
+                {/* Add recent supporters here if needed */}
+              </div>
+
+              {/* Description */}
+              <div className="space-y-4">
+                <h2 className="text-2xl md:text-3xl font-bold">Das Problem</h2>
+                <div className="prose prose-sm md:prose-base max-w-none">
+                  <p className="whitespace-pre-wrap text-base leading-relaxed">{petition.description}</p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <SavePetitionButton petitionId={petition.id} userId={currentUser?.id || null} />
-                <ReportDialog petitionId={petition.id} userId={currentUser?.id || null} />
+
+              {/* Creator Info */}
+              {creatorProfile && (
+                <Card className="bg-muted/30">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                        {creatorProfile.full_name?.charAt(0) || "?"}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold">{creatorProfile.full_name || "Unbekannt"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Gestartet am {format(new Date(petition.created_at), "d. MMMM yyyy", { locale: de })}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Comments Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Diskussion</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PetitionComments petitionId={petition.id} currentUserId={currentUser?.id || null} />
+                </CardContent>
+              </Card>
+
+              {/* All Petitions */}
+              {allPetitions.length > 0 && (
+                <div className="space-y-6 pt-8 border-t">
+                  <h2 className="text-2xl font-bold">Weitere Petitionen</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {allPetitions.map((p) => (
+                      <PetitionCard 
+                        key={p.id}
+                        id={p.id}
+                        title={p.title}
+                        description={p.description}
+                        goal={p.goal}
+                        signatureCount={0}
+                        category={p.category}
+                        imageUrl={p.image_url}
+                        creatorName="Ersteller"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column - Sticky Sign Form */}
+            <div className="lg:col-span-1">
+              <div className="lg:sticky lg:top-8 space-y-4">
+                <Card className="shadow-lg">
+                  <CardContent className="pt-6 space-y-6">
+                    {/* Signature Count */}
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-4xl font-bold text-primary">
+                          {signatureCount.toLocaleString("de-DE")}
+                        </span>
+                        <CheckCircle2 className="w-6 h-6 text-primary" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Verifizierte Unterschriften</p>
+                      <Progress value={progress} className="h-2 mt-4" />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Ziel: {petition.goal.toLocaleString("de-DE")} Unterschriften
+                      </p>
+                    </div>
+
+                    {/* Sign Form */}
+                    <div>
+                      <h3 className="text-xl font-bold mb-4">Unterschreiben Sie diese Petition</h3>
+                      <form onSubmit={handleSign} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName" className="text-sm">Vorname</Label>
+                          <Input
+                            id="firstName"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
+                            placeholder="Max"
+                            className="h-10"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName" className="text-sm">Nachname</Label>
+                          <Input
+                            id="lastName"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
+                            placeholder="Mustermann"
+                            className="h-10"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="email" className="text-sm">E-Mail</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            placeholder="max@beispiel.de"
+                            className="h-10"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="city" className="text-sm">
+                            <MapPin className="w-4 h-4 inline mr-1" />
+                            Stadt
+                          </Label>
+                          <Select value={city} onValueChange={setCity} required>
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Stadt auswählen" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GERMAN_CITIES.map((cityName) => (
+                                <SelectItem key={cityName} value={cityName}>
+                                  {cityName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex items-start gap-2 pt-2">
+                          <Checkbox
+                            id="terms"
+                            checked={agreedToTerms}
+                            onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                            required
+                            className="mt-1"
+                          />
+                          <Label htmlFor="terms" className="text-xs leading-relaxed cursor-pointer">
+                            Ich stimme zu, dass meine Daten gespeichert werden. Siehe{" "}
+                            <a href="/datenschutz" className="text-primary hover:underline">
+                              Datenschutz
+                            </a>
+                          </Label>
+                        </div>
+
+                        <Button 
+                          type="submit" 
+                          size="lg" 
+                          className="w-full h-12 text-base font-semibold" 
+                          disabled={signing}
+                        >
+                          {signing ? "Wird unterschrieben..." : "Petition unterschreiben"}
+                        </Button>
+                      </form>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <SavePetitionButton petitionId={petition.id} userId={currentUser?.id || null} />
+                  <ReportDialog petitionId={petition.id} userId={currentUser?.id || null} />
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Image Gallery */}
-          {images.length > 0 && (
-            <ImageGallery images={images} alt={petition.title} />
-          )}
-
-          {/* Progress Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                Fortschritt
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span className="font-semibold">
-                      {signatureCount.toLocaleString("de-DE")} Unterschriften
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      Ziel: {petition.goal.toLocaleString("de-DE")}
-                    </span>
-                  </div>
-                </div>
-                <Progress value={progress} className="h-3" />
-                <p className="text-sm text-muted-foreground text-right">
-                  Noch {remaining.toLocaleString("de-DE")} Unterschriften benötigt
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {signatureCount.toLocaleString("de-DE")}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Unterstützer</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {petition.goal.toLocaleString("de-DE")}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Ziel</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{Math.round(progress)}%</div>
-                  <div className="text-xs text-muted-foreground">Erreicht</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Description */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Beschreibung</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose prose-sm md:prose-base max-w-none">
-                <p className="whitespace-pre-wrap">{petition.description}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Sign Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl md:text-2xl">Petition unterschreiben</CardTitle>
-              <CardDescription className="text-sm md:text-base">
-                Unterstütze diese Petition mit deiner Unterschrift
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSign} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-base">Vorname *</Label>
-                    <Input
-                      id="firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required
-                      placeholder="Max"
-                      className="h-12 text-base"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-base">Nachname *</Label>
-                    <Input
-                      id="lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
-                      placeholder="Mustermann"
-                      className="h-12 text-base"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-base">E-Mail *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="max.mustermann@beispiel.de"
-                    className="h-12 text-base"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="comment" className="text-base">Kommentar (optional)</Label>
-                  <Input
-                    id="comment"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Warum unterstützt du diese Petition?"
-                    maxLength={500}
-                    className="h-12 text-base"
-                  />
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg">
-                  <Checkbox
-                    id="terms"
-                    checked={agreedToTerms}
-                    onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                    required
-                    className="mt-1"
-                  />
-                  <Label htmlFor="terms" className="text-sm md:text-base leading-relaxed cursor-pointer">
-                    Ich stimme zu, dass meine Daten zur Unterstützung dieser Petition gespeichert,
-                    aber nicht an Dritte weitergegeben werden. Weitere Informationen in unserer{" "}
-                    <a href="/datenschutz" className="text-primary hover:underline font-medium">
-                      Datenschutzerklärung
-                    </a>
-                    .
-                  </Label>
-                </div>
-
-                <Button type="submit" size="lg" className="w-full h-14 text-base md:text-lg" disabled={signing}>
-                  {signing ? "Wird unterschrieben..." : "Jetzt unterschreiben"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Comments Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Diskussion</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PetitionComments petitionId={petition.id} currentUserId={currentUser?.id || null} />
-            </CardContent>
-          </Card>
         </div>
       </div>
       </AnimatedPage>
