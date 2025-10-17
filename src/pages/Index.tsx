@@ -76,10 +76,10 @@ const Index = () => {
               Gemeinsam können wir Großes erreichen. Schließe dich Tausenden von Menschen an, 
               die für ihre Anliegen kämpfen und echte Veränderung bewirken.
             </p>
-            <div className="flex flex-col gap-3 justify-center mb-16">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16 max-w-md mx-auto sm:max-w-none">
               <Button 
                 size="lg" 
-                className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
+                className="text-base md:text-lg px-6 py-5 md:py-6 shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
                 onClick={() => navigate("/create")}
               >
                 <PenLine className="mr-2 h-5 w-5" />
@@ -88,7 +88,7 @@ const Index = () => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 w-full sm:w-auto"
+                className="text-base md:text-lg px-6 py-5 md:py-6 w-full sm:w-auto"
                 onClick={() => document.getElementById("petitions")?.scrollIntoView({
                   behavior: "smooth"
                 })}
@@ -224,7 +224,7 @@ const Index = () => {
           <Button 
             size="lg" 
             variant="secondary" 
-            className="text-lg px-10 py-6 shadow-xl hover:shadow-2xl hover:scale-105 transition-all" 
+            className="text-base md:text-lg px-8 md:px-10 py-5 md:py-6 shadow-xl hover:shadow-2xl w-full sm:w-auto max-w-xs mx-auto sm:max-w-none transition-all" 
             onClick={() => navigate("/create")}
           >
             <PenLine className="mr-2 h-5 w-5" />
