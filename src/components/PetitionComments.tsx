@@ -44,7 +44,7 @@ export const PetitionComments = ({ petitionId, currentUserId }: PetitionComments
         .from("petition_comments")
         .select(`
           *,
-          profiles!petition_comments_user_id_fkey(full_name, avatar_url),
+          profiles(full_name, avatar_url),
           comment_likes(id, user_id)
         `)
         .eq("petition_id", petitionId);

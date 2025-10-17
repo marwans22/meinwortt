@@ -162,9 +162,6 @@ const PetitionDetail = () => {
         return;
       }
 
-      // Update local count immediately
-      setSignatureCount((prev) => prev + 1);
-
       toast.success("Danke, dass du deine Stimme erhoben hast! 🎉");
       
       // Clear form
@@ -206,11 +203,22 @@ const PetitionDetail = () => {
   const remaining = Math.max(petition.goal - signatureCount, 0);
   
   const petitionAny = petition as any;
-  const images = petitionAny.images && Array.isArray(petitionAny.images) 
-    ? petitionAny.images as string[]
-    : petition.image_url 
-    ? [petition.image_url]
-    : [];
+  let images: string[] = [];
+  
+  if (petitionAny.images) {
+    // Check if images is already an array or needs parsing
+    if (Array.isArray(petitionAny.images)) {
+      images = petitionAny.images;
+    } else if (typeof petitionAny.images === 'string') {
+      try {
+        images = JSON.parse(petitionAny.images);
+      } catch {
+        images = [];
+      }
+    }
+  } else if (petition.image_url) {
+    images = [petition.image_url];
+  }
 
   return (
     <Layout>

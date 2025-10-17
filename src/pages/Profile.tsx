@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SavedPetitionsTab } from "@/components/SavedPetitionsTab";
+import { MyPetitionsTab } from "@/components/MyPetitionsTab";
 
 interface Petition {
   id: string;
@@ -436,99 +437,10 @@ const Profile = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Meine Petitionen</CardTitle>
-                <CardDescription>Alle deine erstellten Petitionen</CardDescription>
+                <CardDescription>Alle deine erstellten Petitionen (inkl. Entwürfe und in Prüfung)</CardDescription>
               </CardHeader>
               <CardContent>
-                {petitions.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    Du hast noch keine Petitionen erstellt
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {petitions.map((petition) => (
-                      <Card key={petition.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4 sm:p-6">
-                          <div className="space-y-4">
-                            {/* Petition Info */}
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <h3 className="text-base sm:text-lg font-semibold break-words">{petition.title}</h3>
-                                {getStatusBadge(petition.status)}
-                                {petition.category && (
-                                  <Badge variant="secondary" className="text-xs">{petition.category}</Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                                {petition.description}
-                              </p>
-                              <div className="text-xs text-muted-foreground">
-                                Erstellt am {new Date(petition.created_at).toLocaleDateString("de-DE")}
-                              </div>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex flex-wrap gap-2 pt-2 border-t">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => navigate(`/petition/${petition.id}`)} 
-                                className="flex-1 sm:flex-none"
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                <span>Ansehen</span>
-                              </Button>
-                              {(petition.status === "draft" || isAdmin) && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => navigate(`/create?edit=${petition.id}`)} 
-                                  className="flex-1 sm:flex-none"
-                                >
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  <span>Bearbeiten</span>
-                                </Button>
-                              )}
-                              {isAdmin && petition.status === "pending" && (
-                                <Button 
-                                  variant="default" 
-                                  size="sm" 
-                                  onClick={() => handlePublishPetition(petition.id)} 
-                                  className="flex-1 sm:flex-none"
-                                >
-                                  <span>Veröffentlichen</span>
-                                </Button>
-                              )}
-                              {(petition.status === "draft" || isAdmin) && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="sm" className="flex-1 sm:flex-none">
-                                      <Trash2 className="w-4 h-4 mr-2" />
-                                      <span>Löschen</span>
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Petition löschen?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Diese Aktion kann nicht rückgängig gemacht werden.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeletePetition(petition.id)}>
-                                        Löschen
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+                <MyPetitionsTab userId={user.id} />
               </CardContent>
             </Card>
           </TabsContent>
