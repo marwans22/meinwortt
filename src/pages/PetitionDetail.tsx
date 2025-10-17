@@ -19,7 +19,6 @@ import { ReportDialog } from "@/components/ReportDialog";
 import { ImageGallery } from "@/components/ImageGallery";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PetitionCard } from "@/components/PetitionCard";
-
 interface Petition {
   id: string;
   title: string;
@@ -32,21 +31,13 @@ interface Petition {
   creator_id: string;
   status: string;
 }
-
-const GERMAN_CITIES = [
-  "Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Stuttgart",
-  "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden",
-  "Hannover", "Nürnberg", "Duisburg", "Bochum", "Wuppertal", "Bielefeld",
-  "Bonn", "Münster", "Karlsruhe", "Mannheim", "Augsburg", "Wiesbaden",
-  "Gelsenkirchen", "Mönchengladbach", "Braunschweig", "Chemnitz", "Kiel",
-  "Aachen", "Halle", "Magdeburg", "Freiburg", "Krefeld", "Lübeck",
-  "Oberhausen", "Erfurt", "Mainz", "Rostock", "Kassel", "Hagen",
-  "Hamm", "Saarbrücken", "Mülheim", "Potsdam", "Ludwigshafen", "Oldenburg",
-  "Leverkusen", "Osnabrück", "Solingen", "Heidelberg", "Herne", "Neuss",
-];
-
+const GERMAN_CITIES = ["Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden", "Hannover", "Nürnberg", "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster", "Karlsruhe", "Mannheim", "Augsburg", "Wiesbaden", "Gelsenkirchen", "Mönchengladbach", "Braunschweig", "Chemnitz", "Kiel", "Aachen", "Halle", "Magdeburg", "Freiburg", "Krefeld", "Lübeck", "Oberhausen", "Erfurt", "Mainz", "Rostock", "Kassel", "Hagen", "Hamm", "Saarbrücken", "Mülheim", "Potsdam", "Ludwigshafen", "Oldenburg", "Leverkusen", "Osnabrück", "Solingen", "Heidelberg", "Herne", "Neuss"];
 const PetitionDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const {
+    id
+  } = useParams<{
+    id: string;
+  }>();
   const navigate = useNavigate();
   const [petition, setPetition] = useState<Petition | null>(null);
   const [signatureCount, setSignatureCount] = useState(0);
@@ -55,7 +46,7 @@ const PetitionDetail = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [creatorProfile, setCreatorProfile] = useState<any>(null);
   const [allPetitions, setAllPetitions] = useState<any[]>([]);
-  
+
   // Form fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -67,7 +58,11 @@ const PetitionDetail = () => {
   // Load user
   useEffect(() => {
     const loadUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       setCurrentUser(user);
     };
     loadUser();
@@ -79,55 +74,45 @@ const PetitionDetail = () => {
       navigate("/");
       return;
     }
-
     const loadPetition = async () => {
       setLoading(true);
       try {
         // Load petition
-        const { data: petitionData, error: petitionError } = await supabase
-          .from("petitions")
-          .select("*")
-          .eq("id", id)
-          .eq("status", "published")
-          .maybeSingle();
-
+        const {
+          data: petitionData,
+          error: petitionError
+        } = await supabase.from("petitions").select("*").eq("id", id).eq("status", "published").maybeSingle();
         if (petitionError) throw petitionError;
-        
         if (!petitionData) {
           toast.error("Petition nicht gefunden");
           navigate("/");
           return;
         }
-
         setPetition(petitionData);
 
         // Load creator profile
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", petitionData.creator_id)
-          .single();
-        
+        const {
+          data: profileData
+        } = await supabase.from("profiles").select("*").eq("id", petitionData.creator_id).single();
         setCreatorProfile(profileData);
 
         // Load signature count
-        const { count, error: countError } = await supabase
-          .from("signatures")
-          .select("*", { count: "exact", head: true })
-          .eq("petition_id", id)
-          .eq("verification_status", "verified");
-
+        const {
+          count,
+          error: countError
+        } = await supabase.from("signatures").select("*", {
+          count: "exact",
+          head: true
+        }).eq("petition_id", id).eq("verification_status", "verified");
         if (countError) throw countError;
         setSignatureCount(count || 0);
 
         // Load all published petitions
-        const { data: petitionsData } = await supabase
-          .from("petitions")
-          .select("*")
-          .eq("status", "published")
-          .order("created_at", { ascending: false })
-          .limit(6);
-        
+        const {
+          data: petitionsData
+        } = await supabase.from("petitions").select("*").eq("status", "published").order("created_at", {
+          ascending: false
+        }).limit(6);
         setAllPetitions(petitionsData || []);
       } catch (error: any) {
         console.error("Error loading petition:", error);
@@ -137,58 +122,44 @@ const PetitionDetail = () => {
         setLoading(false);
       }
     };
-
     loadPetition();
   }, [id, navigate]);
 
   // Realtime signature updates
   useEffect(() => {
     if (!id) return;
-
-    const channel = supabase
-      .channel(`signatures-${id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "signatures",
-          filter: `petition_id=eq.${id}`,
-        },
-        (payload) => {
-          if (payload.new.verification_status === "verified") {
-            setSignatureCount((prev) => prev + 1);
-          }
-        }
-      )
-      .subscribe();
-
+    const channel = supabase.channel(`signatures-${id}`).on("postgres_changes", {
+      event: "INSERT",
+      schema: "public",
+      table: "signatures",
+      filter: `petition_id=eq.${id}`
+    }, payload => {
+      if (payload.new.verification_status === "verified") {
+        setSignatureCount(prev => prev + 1);
+      }
+    }).subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [id]);
-
   const handleSign = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!agreedToTerms) {
       toast.error("Bitte stimme den Datenschutzbestimmungen zu");
       return;
     }
-
     if (!petition) return;
-
     setSigning(true);
-
     try {
-      const { error } = await supabase.from("signatures").insert({
+      const {
+        error
+      } = await supabase.from("signatures").insert({
         petition_id: petition.id,
         signer_name: `${firstName} ${lastName}`,
         signer_email: email,
         comment: comment || null,
-        verification_status: "verified",
+        verification_status: "verified"
       });
-
       if (error) {
         if (error.message.includes("duplicate")) {
           toast.error("Du hast diese Petition bereits unterschrieben");
@@ -197,9 +168,8 @@ const PetitionDetail = () => {
         }
         return;
       }
-
       toast.success("Danke, dass du deine Stimme erhoben hast! 🎉");
-      
+
       // Clear form
       setFirstName("");
       setLastName("");
@@ -214,10 +184,8 @@ const PetitionDetail = () => {
       setSigning(false);
     }
   };
-
   if (loading) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-4xl mx-auto">
             <div className="animate-pulse space-y-6">
@@ -228,20 +196,15 @@ const PetitionDetail = () => {
             </div>
           </div>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
   if (!petition) {
     return null;
   }
-
-  const progress = Math.min((signatureCount / petition.goal) * 100, 100);
+  const progress = Math.min(signatureCount / petition.goal * 100, 100);
   const remaining = Math.max(petition.goal - signatureCount, 0);
-  
   const petitionAny = petition as any;
   let images: string[] = [];
-  
   if (petitionAny.images) {
     // Check if images is already an array or needs parsing
     if (Array.isArray(petitionAny.images)) {
@@ -256,9 +219,7 @@ const PetitionDetail = () => {
   } else if (petition.image_url) {
     images = [petition.image_url];
   }
-
-  return (
-    <Layout>
+  return <Layout>
       <AnimatedPage>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
@@ -272,25 +233,19 @@ const PetitionDetail = () => {
                 </h1>
 
                 <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                  {petition.category && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary">
+                  {petition.category && <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary">
                       <Tag className="w-3 h-3" />
                       {petition.category}
-                    </span>
-                  )}
-                  {petition.target_institution && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary text-secondary-foreground">
+                    </span>}
+                  {petition.target_institution && <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary text-secondary-foreground">
                       <Building className="w-3 h-3" />
                       {petition.target_institution}
-                    </span>
-                  )}
+                    </span>}
                 </div>
               </div>
 
               {/* Image Gallery */}
-              {images.length > 0 && (
-                <ImageGallery images={images} alt={petition.title} />
-              )}
+              {images.length > 0 && <ImageGallery images={images} alt={petition.title} />}
 
               {/* Recent Supporters */}
               <div className="space-y-3">
@@ -307,8 +262,7 @@ const PetitionDetail = () => {
               </div>
 
               {/* Creator Info */}
-              {creatorProfile && (
-                <Card className="bg-muted/30">
+              {creatorProfile && <Card className="bg-muted/30">
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
@@ -317,13 +271,14 @@ const PetitionDetail = () => {
                       <div className="flex-1">
                         <p className="font-semibold">{creatorProfile.full_name || "Unbekannt"}</p>
                         <p className="text-sm text-muted-foreground">
-                          Gestartet am {format(new Date(petition.created_at), "d. MMMM yyyy", { locale: de })}
+                          Gestartet am {format(new Date(petition.created_at), "d. MMMM yyyy", {
+                          locale: de
+                        })}
                         </p>
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-              )}
+                </Card>}
 
               {/* Comments Section */}
               <Card>
@@ -336,26 +291,7 @@ const PetitionDetail = () => {
               </Card>
 
               {/* All Petitions */}
-              {allPetitions.length > 0 && (
-                <div className="space-y-6 pt-8 border-t">
-                  <h2 className="text-2xl font-bold">Weitere Petitionen</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {allPetitions.map((p) => (
-                      <PetitionCard 
-                        key={p.id}
-                        id={p.id}
-                        title={p.title}
-                        description={p.description}
-                        goal={p.goal}
-                        signatureCount={0}
-                        category={p.category}
-                        imageUrl={p.image_url}
-                        creatorName="Ersteller"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {allPetitions.length > 0}
             </div>
 
             {/* Right Column - Sticky Sign Form */}
@@ -384,39 +320,17 @@ const PetitionDetail = () => {
                       <form onSubmit={handleSign} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="firstName" className="text-sm">Vorname</Label>
-                          <Input
-                            id="firstName"
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            required
-                            placeholder="Max"
-                            className="h-10"
-                          />
+                          <Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} required placeholder="Max" className="h-10" />
                         </div>
 
                         <div className="space-y-2">
                           <Label htmlFor="lastName" className="text-sm">Nachname</Label>
-                          <Input
-                            id="lastName"
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            required
-                            placeholder="Mustermann"
-                            className="h-10"
-                          />
+                          <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} required placeholder="Mustermann" className="h-10" />
                         </div>
 
                         <div className="space-y-2">
                           <Label htmlFor="email" className="text-sm">E-Mail</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            placeholder="max@beispiel.de"
-                            className="h-10"
-                          />
+                          <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="max@beispiel.de" className="h-10" />
                         </div>
 
                         <div className="space-y-2">
@@ -429,23 +343,15 @@ const PetitionDetail = () => {
                               <SelectValue placeholder="Stadt auswählen" />
                             </SelectTrigger>
                             <SelectContent>
-                              {GERMAN_CITIES.map((cityName) => (
-                                <SelectItem key={cityName} value={cityName}>
+                              {GERMAN_CITIES.map(cityName => <SelectItem key={cityName} value={cityName}>
                                   {cityName}
-                                </SelectItem>
-                              ))}
+                                </SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
 
                         <div className="flex items-start gap-2 pt-2">
-                          <Checkbox
-                            id="terms"
-                            checked={agreedToTerms}
-                            onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                            required
-                            className="mt-1"
-                          />
+                          <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={checked => setAgreedToTerms(checked as boolean)} required className="mt-1" />
                           <Label htmlFor="terms" className="text-xs leading-relaxed cursor-pointer">
                             Ich stimme zu, dass meine Daten gespeichert werden. Siehe{" "}
                             <a href="/datenschutz" className="text-primary hover:underline">
@@ -454,12 +360,7 @@ const PetitionDetail = () => {
                           </Label>
                         </div>
 
-                        <Button 
-                          type="submit" 
-                          size="lg" 
-                          className="w-full h-12 text-base font-semibold" 
-                          disabled={signing}
-                        >
+                        <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold" disabled={signing}>
                           {signing ? "Wird unterschrieben..." : "Petition unterschreiben"}
                         </Button>
                       </form>
@@ -478,8 +379,6 @@ const PetitionDetail = () => {
         </div>
       </div>
       </AnimatedPage>
-    </Layout>
-  );
+    </Layout>;
 };
-
 export default PetitionDetail;
