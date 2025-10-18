@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { AnimatedPage } from "@/components/AnimatedPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,7 @@ import { PetitionComments } from "@/components/PetitionComments";
 import { SavePetitionButton } from "@/components/SavePetitionButton";
 import { ReportDialog } from "@/components/ReportDialog";
 import { ImageGallery } from "@/components/ImageGallery";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CitySelect } from "@/components/CitySelect";
 import { PetitionCard } from "@/components/PetitionCard";
 interface Petition {
   id: string;
@@ -31,7 +30,7 @@ interface Petition {
   creator_id: string;
   status: string;
 }
-const GERMAN_CITIES = ["Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden", "Hannover", "Nürnberg", "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster", "Karlsruhe", "Mannheim", "Augsburg", "Wiesbaden", "Gelsenkirchen", "Mönchengladbach", "Braunschweig", "Chemnitz", "Kiel", "Aachen", "Halle", "Magdeburg", "Freiburg", "Krefeld", "Lübeck", "Oberhausen", "Erfurt", "Mainz", "Rostock", "Kassel", "Hagen", "Hamm", "Saarbrücken", "Mülheim", "Potsdam", "Ludwigshafen", "Oldenburg", "Leverkusen", "Osnabrück", "Solingen", "Heidelberg", "Herne", "Neuss"];
+
 const PetitionDetail = () => {
   const {
     id
@@ -220,7 +219,6 @@ const PetitionDetail = () => {
     images = [petition.image_url];
   }
   return <Layout>
-      <AnimatedPage>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -338,16 +336,11 @@ const PetitionDetail = () => {
                             <MapPin className="w-4 h-4 inline mr-1" />
                             Stadt
                           </Label>
-                          <Select value={city} onValueChange={setCity} required>
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Stadt auswählen" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {GERMAN_CITIES.map(cityName => <SelectItem key={cityName} value={cityName}>
-                                  {cityName}
-                                </SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <CitySelect
+                            value={city}
+                            onChange={setCity}
+                            placeholder="Stadt auswählen..."
+                          />
                         </div>
 
                         <div className="flex items-start gap-2 pt-2">
@@ -378,7 +371,6 @@ const PetitionDetail = () => {
           </div>
         </div>
       </div>
-      </AnimatedPage>
     </Layout>;
 };
 export default PetitionDetail;

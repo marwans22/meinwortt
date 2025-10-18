@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AnimatedPage } from "@/components/AnimatedPage";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import CreatePetition from "./pages/CreatePetition";
@@ -30,28 +31,28 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="animate-fade-in min-h-screen">
+        <div className="min-h-screen">
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/create" element={<CreatePetition />} />
-            <Route path="/petition/:id" element={<PetitionDetail />} />
-            <Route path="/profile/mein" element={<Profile />} />
-            <Route path="/profile/:id" element={<Profile />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/ueber" element={<About />} />
-            <Route path="/so-funktionierts" element={<HowItWorks />} />
-            <Route path="/impressum" element={<Impressum />} />
-            <Route path="/datenschutz" element={<Datenschutz />} />
-            <Route path="/agb" element={<AGB />} />
-            <Route path="/kontakt" element={<Kontakt />} />
-            <Route path="/hilfe" element={<Hilfe />} />
-            <Route path="/groups" element={<Groups />} />
-            <Route path="/groups/create" element={<CreateGroup />} />
-            <Route path="/groups/:id" element={<GroupDetail />} />
-            <Route path="/saved" element={<SavedPetitions />} />
+            <Route path="/" element={<AnimatedPage><Index /></AnimatedPage>} />
+            <Route path="/auth" element={<AnimatedPage><Auth /></AnimatedPage>} />
+            <Route path="/create" element={<AnimatedPage><CreatePetition /></AnimatedPage>} />
+            <Route path="/petition/:id" element={<AnimatedPage><PetitionDetail /></AnimatedPage>} />
+            <Route path="/profile/mein" element={<AnimatedPage><Profile /></AnimatedPage>} />
+            <Route path="/profile/:id" element={<AnimatedPage><Profile /></AnimatedPage>} />
+            <Route path="/admin" element={<AnimatedPage><Admin /></AnimatedPage>} />
+            <Route path="/ueber" element={<AnimatedPage><About /></AnimatedPage>} />
+            <Route path="/so-funktionierts" element={<AnimatedPage><HowItWorks /></AnimatedPage>} />
+            <Route path="/impressum" element={<AnimatedPage><Impressum /></AnimatedPage>} />
+            <Route path="/datenschutz" element={<AnimatedPage><Datenschutz /></AnimatedPage>} />
+            <Route path="/agb" element={<AnimatedPage><AGB /></AnimatedPage>} />
+            <Route path="/kontakt" element={<AnimatedPage><Kontakt /></AnimatedPage>} />
+            <Route path="/hilfe" element={<AnimatedPage><Hilfe /></AnimatedPage>} />
+            <Route path="/groups" element={<AnimatedPage><Groups /></AnimatedPage>} />
+            <Route path="/groups/create" element={<AnimatedPage><CreateGroup /></AnimatedPage>} />
+            <Route path="/groups/:id" element={<AnimatedPage><GroupDetail /></AnimatedPage>} />
+            <Route path="/saved" element={<AnimatedPage><SavedPetitions /></AnimatedPage>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<AnimatedPage><NotFound /></AnimatedPage>} />
           </Routes>
         </div>
       </BrowserRouter>

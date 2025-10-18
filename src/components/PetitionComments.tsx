@@ -91,9 +91,9 @@ export const PetitionComments = ({ petitionId, currentUserId }: PetitionComments
 
       if (error) throw error;
 
-      toast.success("Kommentar wurde gepostet");
       setNewComment("");
-      loadComments();
+      await loadComments();
+      toast.success("Kommentar wurde gepostet");
     } catch (error: any) {
       console.error("Error posting comment:", error);
       toast.error("Fehler beim Posten des Kommentars");

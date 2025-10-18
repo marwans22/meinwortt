@@ -26,6 +26,7 @@ import { AdminStats } from "@/components/AdminStats";
 import { AdminReports } from "@/components/AdminReports";
 import { ExportButton } from "@/components/ExportButton";
 import { AdminReportedPetitions } from "@/components/AdminReportedPetitions";
+import { AdminContactRequests } from "@/components/AdminContactRequests";
 
 interface Petition {
   id: string;
@@ -296,6 +297,7 @@ const Admin = () => {
           <TabsList>
             <TabsTrigger value="petitions">Petitionen</TabsTrigger>
             <TabsTrigger value="reports">Gemeldete Petitionen</TabsTrigger>
+            <TabsTrigger value="contact">Kontakt Anfragen</TabsTrigger>
           </TabsList>
 
           <TabsContent value="petitions" className="space-y-6">
@@ -431,6 +433,10 @@ const Admin = () => {
 
           <TabsContent value="reports">
             <AdminReportedPetitions />
+          </TabsContent>
+
+          <TabsContent value="contact">
+            <AdminContactRequests />
           </TabsContent>
         </Tabs>
       </div>

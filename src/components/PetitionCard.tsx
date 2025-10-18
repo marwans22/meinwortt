@@ -59,7 +59,7 @@ export const PetitionCard = ({
         
         <div className="flex items-center gap-2 text-primary font-inter font-semibold text-sm mb-4">
           <PenTool className="h-4 w-4" />
-          <span>{signatureCount.toLocaleString("de-DE")} Unterschriften</span>
+          <span>{signatureCount.toLocaleString("de-DE")} von {goal.toLocaleString("de-DE")} Unterschriften</span>
         </div>
         
         <div className="mt-auto">

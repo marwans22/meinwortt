@@ -77,14 +77,18 @@ const GroupDetail = () => {
       setName(groupData.name);
       setDescription(groupData.description || "");
 
-      // Load members
-      const { data: membersData } = await supabase
+      // Load members with proper join
+      const { data: membersData, error: membersError } = await supabase
         .from("group_members")
         .select(`
           *,
-          profiles!group_members_user_id_fkey(full_name, avatar_url)
+          profiles(full_name, avatar_url)
         `)
         .eq("group_id", id);
+
+      if (membersError) {
+        console.error("Error loading members:", membersError);
+      }
 
       setMembers(membersData || []);
 
