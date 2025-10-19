@@ -15,7 +15,8 @@ interface Message {
   content: string;
   created_at: string;
   user_id: string;
-  profiles: {
+  group_id: string;
+  profile: {
     full_name: string;
     avatar_url: string | null;
   };
@@ -34,7 +35,44 @@ export const GroupChat = ({ groupId, userId }: GroupChatProps) => {
 
   useEffect(() => {
     loadMessages();
-    subscribeToMessages();
+  }, [groupId]);
+
+  // Realtime subscription for new messages
+  useEffect(() => {
+    const channel = supabase
+      .channel(`group-chat-${groupId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "group_messages",
+          filter: `group_id=eq.${groupId}`,
+        },
+        async (payload) => {
+          const newMsg = payload.new;
+          
+          // Fetch profile for new message
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("full_name, avatar_url")
+            .eq("id", newMsg.user_id)
+            .single();
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              ...newMsg,
+              profile: profileData || { full_name: "Unbekannt", avatar_url: null },
+            } as Message,
+          ]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [groupId]);
 
   useEffect(() => {
@@ -48,73 +86,54 @@ export const GroupChat = ({ groupId, userId }: GroupChatProps) => {
   };
 
   const loadMessages = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get messages
+      const { data: messagesData, error: messagesError } = await supabase
         .from("group_messages")
         .select("*")
         .eq("group_id", groupId)
         .order("created_at", { ascending: true });
 
-      if (error) throw error;
+      if (messagesError) throw messagesError;
+
+      if (!messagesData || messagesData.length === 0) {
+        setMessages([]);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(messagesData.map((m) => m.user_id))];
 
       // Fetch profiles separately
-      if (data && data.length > 0) {
-        const userIds = [...new Set(data.map(m => m.user_id))];
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, full_name, avatar_url")
-          .in("id", userIds);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds);
 
-        const profilesMap = new Map(profilesData?.map(p => [p.id, p]));
-        
-        const messagesWithProfiles = data.map(msg => ({
-          ...msg,
-          profiles: profilesMap.get(msg.user_id) || { full_name: "Unbekannt", avatar_url: null }
-        }));
+      if (profilesError) throw profilesError;
 
-        setMessages(messagesWithProfiles as Message[]);
-      } else {
-        setMessages([]);
-      }
+      // Create profiles map
+      const profilesMap = new Map(
+        profilesData?.map((p) => [p.id, p]) || []
+      );
+
+      // Combine messages with profiles
+      const messagesWithProfiles = messagesData.map((msg) => ({
+        ...msg,
+        profile: profilesMap.get(msg.user_id) || {
+          full_name: "Unbekannt",
+          avatar_url: null,
+        },
+      }));
+
+      setMessages(messagesWithProfiles as Message[]);
     } catch (error: any) {
       console.error("Error loading messages:", error);
       toast.error("Fehler beim Laden der Nachrichten");
     } finally {
       setLoading(false);
     }
-  };
-
-  const subscribeToMessages = () => {
-    const channel = supabase
-      .channel(`group_messages:${groupId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "group_messages",
-          filter: `group_id=eq.${groupId}`,
-        },
-        async (payload) => {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("full_name, avatar_url")
-            .eq("id", payload.new.user_id)
-            .single();
-
-          const newMsg = {
-            ...payload.new,
-            profiles: profileData,
-          } as Message;
-
-          setMessages((prev) => [...prev, newMsg]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -129,6 +148,7 @@ export const GroupChat = ({ groupId, userId }: GroupChatProps) => {
       });
 
       if (error) throw error;
+      
       setNewMessage("");
     } catch (error: any) {
       console.error("Error sending message:", error);
@@ -167,10 +187,10 @@ export const GroupChat = ({ groupId, userId }: GroupChatProps) => {
                       isOwnMessage ? "flex-row-reverse" : ""
                     }`}
                   >
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={message.profiles?.avatar_url || undefined} />
+                    <Avatar className="w-8 h-8 shrink-0">
+                      <AvatarImage src={message.profile?.avatar_url || undefined} />
                       <AvatarFallback>
-                        {message.profiles?.full_name?.charAt(0) || "?"}
+                        {message.profile?.full_name?.charAt(0) || "?"}
                       </AvatarFallback>
                     </Avatar>
                     <div
@@ -180,7 +200,7 @@ export const GroupChat = ({ groupId, userId }: GroupChatProps) => {
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">
-                          {message.profiles?.full_name || "Unbekannt"}
+                          {message.profile?.full_name || "Unbekannt"}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(message.created_at), "HH:mm", {

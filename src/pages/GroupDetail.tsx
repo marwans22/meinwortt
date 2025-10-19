@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,36 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Users, Settings, FileText, UserPlus, UserMinus, Shield } from "lucide-react";
+import { Users, Settings, FileText, UserPlus, UserMinus } from "lucide-react";
 import { PetitionCard } from "@/components/PetitionCard";
 import { GroupChat } from "@/components/GroupChat";
-import { Link } from "react-router-dom";
+
+interface GroupMember {
+  id: string;
+  user_id: string;
+  role: string;
+  joined_at: string;
+  profiles: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface GroupData {
+  id: string;
+  name: string;
+  description: string | null;
+  logo_url: string | null;
+  created_by: string;
+  created_at: string;
+}
 
 const GroupDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [group, setGroup] = useState<any>(null);
-  const [members, setMembers] = useState<any[]>([]);
+  const [group, setGroup] = useState<GroupData | null>(null);
+  const [members, setMembers] = useState<GroupMember[]>([]);
   const [petitions, setPetitions] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMember, setIsMember] = useState(false);
@@ -31,8 +51,15 @@ const GroupDetail = () => {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
-    const channel = (supabase as any)
-      .channel(`members-${id}`)
+    initializeData();
+  }, [id]);
+
+  // Realtime subscription for members
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`group-members-${id}`)
       .on(
         "postgres_changes",
         {
@@ -42,81 +69,138 @@ const GroupDetail = () => {
           filter: `group_id=eq.${id}`,
         },
         () => {
-          // Reload members when changes occur
-          loadGroup(user);
+          loadMembers();
         }
       )
       .subscribe();
 
     return () => {
-      (supabase as any).removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, [id, user]);
-
-  useEffect(() => {
-    loadUserAndGroup();
   }, [id]);
 
-  const loadUserAndGroup = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-    await loadGroup(user);
-  };
-
-  const loadGroup = async (currentUser?: any) => {
+  const initializeData = async () => {
     setLoading(true);
     try {
-      const { data: groupData, error } = await supabase
-        .from("groups")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+      
+      await Promise.all([
+        loadGroup(),
+        loadMembers(),
+        loadPetitions(),
+      ]);
 
-      if (error) throw error;
-      setGroup(groupData);
-      setName(groupData.name);
-      setDescription(groupData.description || "");
-
-      // Load members with proper join
-      const { data: membersData, error: membersError } = await supabase
-        .from("group_members")
-        .select(`
-          *,
-          profiles(full_name, avatar_url)
-        `)
-        .eq("group_id", id);
-
-      if (membersError) {
-        console.error("Error loading members:", membersError);
+      // Check user membership after loading members
+      if (currentUser) {
+        await checkUserMembership(currentUser.id);
       }
-
-      setMembers(membersData || []);
-
-      // Check if current user is member/admin
-      const userToCheck = currentUser || user;
-      if (userToCheck) {
-        const userMembership = membersData?.find((m: any) => m.user_id === userToCheck.id);
-        setIsMember(!!userMembership || groupData?.created_by === userToCheck.id);
-        setIsAdmin((userMembership?.role === "admin") || groupData?.created_by === userToCheck.id);
-      }
-
-      // Load petitions
-      const { data: petitionsData } = await supabase
-        .from("group_petitions")
-        .select(`
-          petition_id,
-          petitions(*)
-        `)
-        .eq("group_id", id);
-
-      setPetitions(petitionsData?.map((p: any) => p.petitions) || []);
-    } catch (error: any) {
-      console.error("Error loading group:", error);
+    } catch (error) {
+      console.error("Error initializing data:", error);
       toast.error("Fehler beim Laden der Gruppe");
       navigate("/groups");
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadGroup = async () => {
+    const { data, error } = await supabase
+      .from("groups")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    
+    setGroup(data);
+    setName(data.name);
+    setDescription(data.description || "");
+  };
+
+  const loadMembers = async () => {
+    // First get members
+    const { data: membersData, error: membersError } = await supabase
+      .from("group_members")
+      .select("id, user_id, role, joined_at")
+      .eq("group_id", id)
+      .order("joined_at", { ascending: true });
+
+    if (membersError) {
+      console.error("Error loading members:", membersError);
+      return;
+    }
+
+    if (!membersData || membersData.length === 0) {
+      setMembers([]);
+      return;
+    }
+
+    // Get user IDs
+    const userIds = [...new Set(membersData.map((m) => m.user_id))];
+
+    // Fetch profiles separately
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .in("id", userIds);
+
+    if (profilesError) {
+      console.error("Error loading profiles:", profilesError);
+      return;
+    }
+
+    // Build profiles map
+    const profilesMap = new Map(
+      profilesData?.map((p) => [p.id, p]) || []
+    );
+
+    // Combine data
+    const membersWithProfiles = membersData.map((member) => ({
+      ...member,
+      profiles: profilesMap.get(member.user_id) || {
+        id: member.user_id,
+        full_name: "Unbekannt",
+        avatar_url: null,
+      },
+    }));
+
+    setMembers(membersWithProfiles as GroupMember[]);
+  };
+
+  const checkUserMembership = async (userId: string) => {
+    const { data } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("group_id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const membershipExists = !!data;
+    const isGroupAdmin = data?.role === "admin" || group?.created_by === userId;
+
+    setIsMember(membershipExists);
+    setIsAdmin(isGroupAdmin);
+  };
+
+  const loadPetitions = async () => {
+    const { data } = await supabase
+      .from("group_petitions")
+      .select(`
+        petition_id,
+        petitions (
+          id,
+          title,
+          description,
+          category,
+          image_url,
+          goal,
+          created_at
+        )
+      `)
+      .eq("group_id", id);
+
+    setPetitions(data?.map((p: any) => p.petitions).filter(Boolean) || []);
   };
 
   const handleJoin = async () => {
@@ -133,8 +217,10 @@ const GroupDetail = () => {
       });
 
       if (error) throw error;
+      
       toast.success("Du bist der Gruppe beigetreten!");
-      loadGroup(user);
+      await loadMembers();
+      await checkUserMembership(user.id);
     } catch (error: any) {
       console.error("Error joining group:", error);
       toast.error("Fehler beim Beitreten");
@@ -152,8 +238,11 @@ const GroupDetail = () => {
         .eq("user_id", user.id);
 
       if (error) throw error;
+      
       toast.success("Du hast die Gruppe verlassen");
-      loadGroup(user);
+      setIsMember(false);
+      setIsAdmin(false);
+      await loadMembers();
     } catch (error: any) {
       console.error("Error leaving group:", error);
       toast.error("Fehler beim Verlassen");
@@ -168,9 +257,10 @@ const GroupDetail = () => {
         .eq("id", id);
 
       if (error) throw error;
+      
       toast.success("Gruppe aktualisiert");
       setEditMode(false);
-      loadGroup(user);
+      await loadGroup();
     } catch (error: any) {
       console.error("Error updating group:", error);
       toast.error("Fehler beim Aktualisieren");
@@ -187,8 +277,9 @@ const GroupDetail = () => {
         .eq("id", memberId);
 
       if (error) throw error;
+      
       toast.success(`Rolle aktualisiert zu ${newRole === "admin" ? "Admin" : "Mitglied"}`);
-      loadGroup(user);
+      await loadMembers();
     } catch (error: any) {
       console.error("Error updating role:", error);
       toast.error("Fehler beim Aktualisieren der Rolle");
@@ -203,8 +294,9 @@ const GroupDetail = () => {
         .eq("id", memberId);
 
       if (error) throw error;
+      
       toast.success("Mitglied entfernt");
-      loadGroup(user);
+      await loadMembers();
     } catch (error: any) {
       console.error("Error removing member:", error);
       toast.error("Fehler beim Entfernen");
@@ -227,9 +319,8 @@ const GroupDetail = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 md:py-16">
+      <div className="container mx-auto px-4 py-8 md:py-16 animate-fade-in">
         <div className="max-w-6xl mx-auto space-y-8">
-          {/* Header */}
           <Card>
             <CardHeader className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-start gap-6">
@@ -276,7 +367,7 @@ const GroupDetail = () => {
                       <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-4">
                         <Badge variant="secondary" className="text-sm px-3 py-1.5">
                           <Users className="w-3.5 h-3.5 mr-1.5" />
-                          {(members.length || (user?.id === group.created_by ? 1 : 0))} {(members.length || (user?.id === group.created_by ? 1 : 0)) === 1 ? "Mitglied" : "Mitglieder"}
+                          {members.length} {members.length === 1 ? "Mitglied" : "Mitglieder"}
                         </Badge>
                         <Badge variant="outline" className="text-sm px-3 py-1.5">
                           <FileText className="w-3.5 h-3.5 mr-1.5" />
@@ -295,7 +386,7 @@ const GroupDetail = () => {
                       Bearbeiten
                     </Button>
                   )}
-                  {user && !isMember && user.id !== group.created_by && (
+                  {user && !isMember && (
                     <Button onClick={handleJoin} size="lg" className="w-full sm:w-auto">
                       <UserPlus className="w-4 h-4 mr-2" />
                       Beitreten
@@ -312,9 +403,8 @@ const GroupDetail = () => {
             </CardHeader>
           </Card>
 
-          {/* Tabs */}
-          <Tabs defaultValue="petitions">
-            <TabsList>
+          <Tabs defaultValue="petitions" className="w-full">
+            <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="petitions">Petitionen</TabsTrigger>
               <TabsTrigger value="members">Mitglieder</TabsTrigger>
               {isMember && <TabsTrigger value="chat">Chat</TabsTrigger>}
@@ -333,17 +423,17 @@ const GroupDetail = () => {
                 </Card>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {petitions.map((petition: any) => (
-                    <PetitionCard 
+                  {petitions.map((petition) => (
+                    <PetitionCard
                       key={petition.id}
                       id={petition.id}
                       title={petition.title}
                       description={petition.description}
                       goal={petition.goal}
                       signatureCount={0}
-                      category={petition.category || undefined}
-                      imageUrl={petition.image_url || undefined}
-                      creatorName="Unbekannt"
+                      category={petition.category}
+                      imageUrl={petition.image_url}
+                      creatorName="Gruppe"
                     />
                   ))}
                 </div>
@@ -358,7 +448,7 @@ const GroupDetail = () => {
                 </p>
               </div>
               {members.map((member, index) => (
-                <Card key={member.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                <Card key={member.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
                   <CardContent className="flex items-center justify-between p-4 transition-all hover:bg-muted/50">
                     <Link
                       to={`/profile/${member.user_id}`}
@@ -400,9 +490,9 @@ const GroupDetail = () => {
               ))}
             </TabsContent>
 
-            {isMember && (
+            {isMember && user && (
               <TabsContent value="chat">
-                <GroupChat groupId={id!} userId={user?.id!} />
+                <GroupChat groupId={id!} userId={user.id} />
               </TabsContent>
             )}
           </Tabs>

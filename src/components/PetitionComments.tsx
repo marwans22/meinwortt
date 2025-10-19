@@ -40,31 +40,70 @@ export const PetitionComments = ({ petitionId, currentUserId }: PetitionComments
   const loadComments = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      // First get comments
+      const { data: commentsData, error: commentsError } = await supabase
         .from("petition_comments")
-        .select(`
-          *,
-          profiles(full_name, avatar_url),
-          comment_likes(id, user_id)
-        `)
-        .eq("petition_id", petitionId);
+        .select("*")
+        .eq("petition_id", petitionId)
+        .order("created_at", { ascending: sortBy === "newest" ? false : true });
 
-      if (sortBy === "newest") {
-        query = query.order("created_at", { ascending: false });
+      if (commentsError) throw commentsError;
+
+      if (!commentsData || commentsData.length === 0) {
+        setComments([]);
+        return;
       }
 
-      const { data, error } = await query;
+      // Get user IDs
+      const userIds = [...new Set(commentsData.map((c) => c.user_id))];
 
-      if (error) throw error;
+      // Fetch profiles separately
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds);
 
-      let sortedData = data || [];
+      if (profilesError) throw profilesError;
+
+      // Fetch comment likes
+      const commentIds = commentsData.map((c) => c.id);
+      const { data: likesData, error: likesError } = await supabase
+        .from("comment_likes")
+        .select("id, user_id, comment_id")
+        .in("comment_id", commentIds);
+
+      if (likesError) throw likesError;
+
+      // Build profiles and likes maps
+      const profilesMap = new Map(
+        profilesData?.map((p) => [p.id, p]) || []
+      );
+      const likesMap = new Map<string, any[]>();
+      (likesData || []).forEach((like) => {
+        if (!likesMap.has(like.comment_id)) {
+          likesMap.set(like.comment_id, []);
+        }
+        likesMap.get(like.comment_id)!.push(like);
+      });
+
+      // Combine data
+      let combinedData = commentsData.map((comment) => ({
+        ...comment,
+        profiles: profilesMap.get(comment.user_id) || {
+          full_name: "Unbekannt",
+          avatar_url: null,
+        },
+        comment_likes: likesMap.get(comment.id) || [],
+      }));
+
+      // Sort by popularity if needed
       if (sortBy === "popular") {
-        sortedData = sortedData.sort((a, b) => 
-          (b.comment_likes?.length || 0) - (a.comment_likes?.length || 0)
+        combinedData = combinedData.sort(
+          (a, b) => b.comment_likes.length - a.comment_likes.length
         );
       }
 
-      setComments(sortedData as any);
+      setComments(combinedData as any);
     } catch (error: any) {
       console.error("Error loading comments:", error);
       toast.error("Fehler beim Laden der Kommentare");

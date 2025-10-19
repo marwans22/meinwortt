@@ -43,35 +43,46 @@ const Groups = () => {
     setLoading(true);
     try {
       // Fetch groups
-      const { data: groupsData, error } = await supabase
+      const { data: groupsData, error: groupsError } = await supabase
         .from("groups")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (groupsError) throw groupsError;
 
-      // Fetch member counts for all groups
+      if (!groupsData || groupsData.length === 0) {
+        setGroups([]);
+        return;
+      }
+
+      // Get all group IDs
+      const groupIds = groupsData.map((g) => g.id);
+
+      // Fetch member counts
       const { data: memberCounts } = await supabase
         .from("group_members")
-        .select("group_id");
+        .select("group_id")
+        .in("group_id", groupIds);
 
-      // Fetch petition counts for all groups
+      // Fetch petition counts
       const { data: petitionCounts } = await supabase
         .from("group_petitions")
-        .select("group_id");
+        .select("group_id")
+        .in("group_id", groupIds);
 
-      // Count members and petitions per group
-      const memberCountMap = (memberCounts || []).reduce((acc: any, item: any) => {
+      // Build count maps
+      const memberCountMap = (memberCounts || []).reduce((acc: Record<string, number>, item: any) => {
         acc[item.group_id] = (acc[item.group_id] || 0) + 1;
         return acc;
       }, {});
 
-      const petitionCountMap = (petitionCounts || []).reduce((acc: any, item: any) => {
+      const petitionCountMap = (petitionCounts || []).reduce((acc: Record<string, number>, item: any) => {
         acc[item.group_id] = (acc[item.group_id] || 0) + 1;
         return acc;
       }, {});
 
-      const processedGroups = (groupsData || []).map((group: any) => ({
+      // Combine data
+      const processedGroups = groupsData.map((group) => ({
         ...group,
         _count: {
           members: memberCountMap[group.id] || 0,
